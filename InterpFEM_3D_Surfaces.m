@@ -7,6 +7,11 @@
 clear all
 clc
 
+% ----------------------------------------------------------------------
+% Function to interpolate (go to fxy.m)
+% ----------------------------------------------------------------------
+fun=1;
+
 % ---------------------------------------------------------------------
 % Plotting original surface:
 % ---------------------------------------------------------------------
@@ -41,14 +46,14 @@ elseif typeSampleData==2
         yi=yi+dyy;
     end
 end
-z=fxy(x,y);
+z=fxy(x,y,fun);
 
 % ---------------------------------------------------------------------
 % Generate discretization mesh
 % ---------------------------------------------------------------------
 
 domxy=rangexy(2)-rangexy(1); % this is the range of the sample
-npxy=12; % the n nodes on each direction x,y to generate the FE mesh
+npxy=10; % the n nodes on each direction x,y to generate the FE mesh
 
 % Generate discretization mesh
 
@@ -147,7 +152,7 @@ for i=1:nelxy
 end
 ngp=2;
 
-lambdax=2;
+lambdax=1.8;
 lambday=2; 
 ep=[ngp,lambdax,lambday];
 eq=sumZk;
@@ -176,7 +181,7 @@ delta=(rangexy(2)-rangexy(1))/(limit-1);
 zValues=zeros(limit,limit);
 for j=1:limit
     for k=1:limit
-        zValues(j,k)=fxy(xValues(j,k), yValues(j,k));
+        zValues(j,k)=fxy(xValues(j,k), yValues(j,k), fun);
     end
 end
 
@@ -184,9 +189,14 @@ end
 % Solving the system
 % ---------------------------------------------------------------------
 
-% Boundary conditions -------------------------------------------------
-bounds=[1 2 3 4];
-if length(bounds)==4
+% Boundary conditions 
+bounds=[4]; % 1: upper boundary
+                  % 2: right boundary
+                  % 3: bottom boundary
+                  % 4: left boundary
+                  
+if length(bounds)==4 % when the four boundaries are given as conditions 
+                     % to comply with
     bc=zeros(npxy*2+2*(npxy-2),2);
     % Bottom boundary:
     for i=1:npxy
@@ -210,8 +220,46 @@ if length(bounds)==4
         bc(npxy*2+2*(npxy-2)-i+1,1)=npxy^2-i+1;
         bc(npxy*2+2*(npxy-2)-i+1,2)=zValues(npxy,npxy-i+1);
     end
-    [u,r]=solveq(K,f,bc);
+elseif length(bounds)==1 % only one boundary as initial condition
+    if bounds(1)==1
+        bc=zeros(npxy,2);
+        % Upper boundary:
+        for i=1:npxy
+            bc(i,1)=npxy^2-i+1; % dof 
+            bc(i,2)=zValues(npxy,npxy+1-i); % condition value
+        end
+    elseif bounds(1)==2
+        bc=zeros(npxy,2);
+        % Right boundary:
+        bc(1,1)=npxy;
+        bc(1,2)=zValues(1,npxy);
+        for i=1:npxy-2
+            bc(1+i,1)=(i+1)*npxy;
+            bc(1+i,2)=zValues(i+1,npxy);
+        end
+        bc(npxy,1)=npxy*npxy;
+        bc(npxy,2)=zValues(npxy,npxy);
+    elseif bounds(1)==3 
+        bc=zeros(npxy,2);
+        % Bottom boundary:
+        for i=1:npxy
+            bc(i,1)=i;
+            bc(i,2)=zValues(1,i);
+        end
+    elseif bounds(1)==4
+        bc=zeros(npxy,2);
+        bc(1,1)=npxy^2-npxy+1;
+        bc(1,2)=zValues(1,1);
+        % Left boundary:
+        for i=1:npxy-2
+            bc(i+1,1)=(i)*npxy+1;
+            bc(i+1,2)=zValues(i+1,1);
+        end
+        bc(npxy,1)=1;
+        bc(npxy,2)=zValues(1,1);
+    end
 end
+[u,r]=solveq(K,f,bc);
 % ----------------------------------------------------------------------
 % Plotting results - Interpolating surface
 % ----------------------------------------------------------------------
